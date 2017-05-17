@@ -3,7 +3,7 @@
 #include <math.h>
 #include <SDL/SDL.h>
 
-#define HEIGHT 512
+#define HEIGHT 300
 #define BPP 4
 #define DEPTH 32
 
@@ -75,12 +75,12 @@ void setpixel(SDL_Surface *screen, int x, int y, Uint8 r, Uint8 g, Uint8 b)
     *pixmem32 = colour;
 }
 
-#define TRIGGER 200
+int divisor=1;
 void DrawScreen(SDL_Surface* screen, int bufsize)
 { 
-    int x, y,oldx,oldy;
+    unsigned int x, y,oldy;
     oldy=128;
-    static int max=-9999;
+    int cont2,divcont;
     SDL_Rect srcrect,dstrect;
 
 // Read data
@@ -90,30 +90,40 @@ if (len!=bufsize*sizeof(int))
 // Write data (to use as in pipe)
 len = write (1,buf,bufsize*sizeof(int));
 
-#define REDUCTION 800.0
+#define REDUCTION 900.0
 
 // Draw data slow-oscilloscope
 float foldx =0 ,fx =0;
 
 srcrect.x = (bufsize/REDUCTION);
 srcrect.y = 0;
-srcrect.w = (bufsize-(bufsize/REDUCTION));
+srcrect.w = (bufsize-(bufsize/REDUCTION))+100;
 srcrect.h = HEIGHT;
 
 dstrect.x = 0;
 dstrect.y = 0;
-dstrect.w = (bufsize-(bufsize/REDUCTION));
+dstrect.w = (bufsize-(bufsize/REDUCTION))+100;
 dstrect.h = HEIGHT;
 
 SDL_BlitSurface(screen,&srcrect,screen,&dstrect);
 SDL_Rect rect2 = {bufsize-(bufsize/REDUCTION),0,bufsize,HEIGHT};
 SDL_FillRect( SDL_GetVideoSurface(), &rect2, 0 );
 
-for(x = 0; x < bufsize; x+=1 ) {
-	    y=buf[x]/10000+10;
+
+for(x = 0,divcont=0,cont2=0; x < bufsize; x+=1 ) {
+		// cálculo de promedio de señal
+	    divcont+=buf[x];
+	    if (cont2>1000) {
+		divisor=divcont/cont2*10;
+		cont2=0;
+		divcont=0;
+		} else cont2++;
+	    y=buf[x]/divisor+10;
 	    if (y>=HEIGHT-1) y=HEIGHT-1;
 	    fx=x/REDUCTION;
-	    bresenham_line(screen, bufsize-fx, oldy, bufsize-foldx,y,0xffFF00);
+	    int width = abs(y-oldy);
+	    if (width>=HEIGHT) width=HEIGHT-1;
+	    bresenham_line(screen, -1+bufsize-fx, (HEIGHT/2)-(width/2),-1+bufsize-foldx, (HEIGHT/2)+(width/2),0xFFFF00);
 	    foldx=fx;oldy=y;
 	}
 
@@ -129,7 +139,7 @@ int main(int argc, char* argv[])
 {
 
 int buflen=WIDTH;
-buf= (int *) calloc(buflen,sizeof(int));
+buf= (unsigned int *) calloc(buflen,sizeof(int));
 
     SDL_Surface *screen;
     SDL_Event event;
@@ -151,7 +161,7 @@ buf= (int *) calloc(buflen,sizeof(int));
     }
 
  // main loop
-    while(1) 
+    while(!keypress) 
     {
          DrawScreen(screen,WIDTH);
          while(SDL_PollEvent(&event)) 

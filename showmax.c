@@ -3,7 +3,7 @@
 #include <math.h>
 #include <SDL/SDL.h>
 
-#define DEPTH 3
+#define DEPTH 8
 
 int main(int argc, char* argv[])
 {
@@ -20,10 +20,10 @@ int main(int argc, char* argv[])
 	for (int i=0;i<DEPTH;i++)
 		prom+=buf[i];
 	prom=prom/DEPTH;
-       if (prom>50) {
+        //if (prom>50) {
 		//fprintf(stderr,"%d\n",prom);
-		fwrite(&prom,1,sizeof(int),stdout);
-		}
+	//	}
+	fwrite(&prom,1,sizeof(int),stdout);
     }
 
   

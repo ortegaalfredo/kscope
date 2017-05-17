@@ -65,9 +65,7 @@ inline void task(void)	{
 
 
 int main(int argc, char **argv, char **arge) {
-  int cont2;
   struct timespec tps, tpe;
-  cont2=0;
   buf = prepare_timing_buf(DISK_BUF_BYTES);
   //fd=open("/dev/sda",O_RDONLY | O_DIRECT | O_SYNC);
   fd=open("/dev/sda",O_RDONLY );
@@ -81,8 +79,6 @@ int main(int argc, char **argv, char **arge) {
 	  i = tpe.tv_nsec-tps.tv_nsec;
 	  if (i<100000000)
 		  fwrite(&i,sizeof(int),1,stdout);
-	  cont2++;
-	  tps=tpe;
   	}
   return 0;
 }
