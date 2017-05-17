@@ -1,4 +1,4 @@
-all: sdlview time fftview time-diff showmax
+all: sdlview time fftview showmax
 
 clean:
 	rm sdlview time fftview showmax
@@ -17,6 +17,3 @@ time : time.c
 
 showmax : showmax.c
 	gcc $(CFLAGS) -o showmax showmax.c
-
-time-diff : time-diff.c
-	gcc $(CFLAGS) -o time-diff time-diff.c
