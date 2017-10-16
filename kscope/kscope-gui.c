@@ -3,8 +3,9 @@
 #include <math.h>
 #include <SDL/SDL.h>
 #include <fftw3.h>
+#include "kscope.h"
 
-#define HEIGHT 256
+#define HEIGHT 256*3
 #define BPP 4
 #define DEPTH 32
 
@@ -81,10 +82,9 @@ fftw_complex *in, *out;
 fftw_plan p;
 void DrawScreen(SDL_Surface* screen, int bufsize)
 { 
-    int x, y,oldx;
-    oldx=0;
+    unsigned int x, y,oldx,oldy;
     static int max=-9999;
-    int triggered=0;
+//    int triggered=0;
 
     int k;
     SDL_Rect srcrect,dstrect;
@@ -96,6 +96,7 @@ void DrawScreen(SDL_Surface* screen, int bufsize)
 //SDL_FillRect( SDL_GetVideoSurface(), NULL, 0 );
 
 // Trigger
+/*
 triggered=0;
 while(!triggered) {
 	int len=fread(buf,1,sizeof(short),stdin);
@@ -104,24 +105,52 @@ while(!triggered) {
 	y=buf[0]/256+128;
 	if (y>TRIGGER) triggered=1;
 	}
-
+*/
 
 // Read data
-int len=fread(buf,1,bufsize*sizeof(short),stdin);
-if (len!=bufsize*sizeof(short))
-	exit(0); // EOF
-// Write data (to use as in pipe)
-len = write (1,buf,bufsize*sizeof(short));
-
-// Convert data
-
-
+for (k=0;k<bufsize;k++)
+	buf[k]=measure();
 
 //    for(k=0;k<bufsize;k++) {in[k][0]=0;in[k][1]=0;}  
 //    for(k=0;k<bufsize/8;k++) {in[k][0]=2000;in[k][1]=0;}
 
+
+// Clean
+SDL_Rect rect = {0,256,bufsize,256};
+SDL_FillRect( SDL_GetVideoSurface(), &rect, 0 );
+oldx=0;oldy=128;
+
+// Draw data oscilloscope
+    for(x = 0; x < bufsize; x++ ) {
+	    y=buf[x]/100;
+	    if (y>240) y=240;
+	    if (abs(y)>max) max=abs(y);
+	    bresenham_line(screen, oldx, 500-oldy, x,500-y,0x00FF00);
+	    oldx=x;oldy=y;
+	}
+
+#define REDUCTION 1000.0
+// Draw data slow-oscilloscope
+float foldx =0 ,fx =0;
+for(x = 0; x < bufsize; x++ ) {
+	    y=log2(buf[x])*15;///100;
+	    if (y>240) y=240;
+	    if (abs(y)>max) max=abs(y);
+	    fx=x/REDUCTION;
+	    bresenham_line(screen, bufsize-foldx, 256-oldy, bufsize-fx,256-y,0xffFF00);
+	    foldx=fx;oldy=y;
+	}
+    srcrect.x = (bufsize/REDUCTION);srcrect.y = 0;
+    dstrect.x = 0;dstrect.y = 0;
+    dstrect.w = srcrect.w=bufsize*2;dstrect.h=srcrect.h = 256;
+SDL_BlitSurface(screen,&srcrect,screen,&dstrect);
+SDL_Rect rect2 = {bufsize-(bufsize/REDUCTION),0,bufsize,256};
+SDL_FillRect( SDL_GetVideoSurface(), &rect2, 0 );
+
+
+oldx=oldy=0;
+// Place data into FFT buffer
     for(k=0;k<bufsize;k++) {in[k][0]=buf[k];in[k][1]=0;}
-    
 
     fftw_execute(p);
  
@@ -136,17 +165,17 @@ len = write (1,buf,bufsize*sizeof(short));
 
     bufsize/=2; // do not draw negative freqs.
 
-// Draw data
+// Draw data FFT
     for(x = 0; x < bufsize; x++ ) {
 	    y=buf[x];
 	    if (abs(y)>max) max=abs(y);
-	    bresenham_line(screen, oldx*2, 255, x*2,255,0x00+y);
+	    bresenham_line(screen, oldx*2, HEIGHT-1, x*2,HEIGHT-1,0x00+y);
 	    oldx=x;
 		}
 
-    dstrect.x = 0;dstrect.y = 0;
-    srcrect.x = 0;srcrect.y = 1;
-    dstrect.w = srcrect.w=bufsize*2;dstrect.h=srcrect.h = 255;
+    dstrect.x = 0;dstrect.y = HEIGHT-256;
+    srcrect.x = 0;srcrect.y = HEIGHT-255;
+    dstrect.w = srcrect.w=bufsize*2;dstrect.h=srcrect.h = HEIGHT-1;
 
     SDL_BlitSurface(screen,&srcrect,screen,&dstrect);
 
@@ -158,6 +187,8 @@ len = write (1,buf,bufsize*sizeof(short));
 
 int main(int argc, char* argv[])
 {
+// Initialize measurements lib
+int fd=init("/dev/sda");
 
 int buflen=WIDTH;
 buf= (short *) calloc(buflen,sizeof(short));
@@ -168,7 +199,7 @@ buf= (short *) calloc(buflen,sizeof(short));
   
     if (SDL_Init(SDL_INIT_VIDEO) < 0 ) return 1;
    
-    if (!(screen = SDL_SetVideoMode(WIDTH, HEIGHT, DEPTH, SDL_SWSURFACE|SDL_RESIZABLE)))
+    if (!(screen = SDL_SetVideoMode(WIDTH, HEIGHT, DEPTH, SDL_HWSURFACE|SDL_RESIZABLE|SDL_NOFRAME)))
     {
         SDL_Quit();
         return 1;
@@ -210,6 +241,8 @@ buf= (short *) calloc(buflen,sizeof(short));
     if(SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);  
 
     SDL_Quit();
+
+    close(fd);
   
     return 0;
 }

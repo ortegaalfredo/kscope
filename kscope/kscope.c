@@ -53,32 +53,33 @@ static void *prepare_timing_buf (unsigned int len)
 	return buf;
 }
 
-inline void task(void)	{
-	int i;
-	//ioctl(fd, BLKFLSBUF, NULL);
-	i=read(fd,buf,DISK_BUF_BYTES);
-	/* access all sectors of buf to ensure the read fully completed */
-	//for (i = 0; i < DISK_BUF_BYTES; i += 512)
-	//	buf[i] &= 1;
+struct timespec tps, tpe;
+
+/* This is the task we want to measure */
+unsigned int measure(void)	{
+	pid_t pid;
+        struct stat sb;
+	char *c;
+  	clock_gettime(CLOCK_REALTIME, &tps);
+	stat("/bin/sh",&sb);
+	//pid=getpid();
+	/*
+	c=calloc(100000000,1);
+	c[1]=0;
+	free(c);
+	*/
+	//usleep(500);
+	//fprintf(stderr,"aaa\n");
+	clock_gettime(CLOCK_REALTIME, &tpe);
+	return (tpe.tv_nsec-tps.tv_nsec);
 	}
 
+/* Init block device to measure. Returns file descriptor */
+int init(char *device) {
 
-
-int main(int argc, char **argv, char **arge) {
-  struct timespec tps, tpe;
   buf = prepare_timing_buf(DISK_BUF_BYTES);
   //fd=open("/dev/sda",O_RDONLY | O_DIRECT | O_SYNC);
-  fd=open("/dev/sda",O_RDONLY );
+  fd=open(device,O_RDONLY );
   flush_buffer_cache(fd);
-  unsigned int i;
-  while (1) {
-	  //fprintf(stderr,"%d: %d\n",cont2,i);
-  	  clock_gettime(CLOCK_REALTIME, &tps);
-	  task();
-	  clock_gettime(CLOCK_REALTIME, &tpe);
-	  i = tpe.tv_nsec-tps.tv_nsec;
-	  if (i<100000000)
-		  fwrite(&i,sizeof(int),1,stdout);
-  	}
-  return 0;
+  return fd;
 }
